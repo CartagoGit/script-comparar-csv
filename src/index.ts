@@ -1,8 +1,8 @@
 import { readFile, writeFile } from 'node:fs/promises';
 
 const filesToCompare = {
-	file1: './files/desde_beat.csv',
-	file2: './files/desde_poliviso.csv',
+	file1: './files/file1.csv',
+	file2: './files/file2.csv',
 };
 
 const runScript = async () => {
