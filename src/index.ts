@@ -5,6 +5,8 @@ const filesToCompare = {
 	file2: './files/file2.csv',
 };
 
+const routeToNewFile = './files/diff.csv';
+
 const runScript = async () => {
 	const separador = '\t';
 	const [file1Readed, file2Readed] = await Promise.all([
@@ -34,9 +36,16 @@ const runScript = async () => {
 			const id = objLine['id'];
 			// if the id is not present or is the header, continue
 			if (!id || id === 'id') continue;
-
+			if (id === '4141') console.log({ objLine });
 			// Custom conditionals to filter the lines
 			if (objLine['razon_social'] === 'CONTADO') continue;
+			// const kindIdentifier = checkisCifOrNif(objLine['cif']);
+			// console.log({ kindIdentifier });
+			// if (kindIdentifier === 'none') continue;
+			// else if (kindIdentifier === 'cif' && !isValidCif(objLine['cif']))
+			// 	continue;
+			// else if (kindIdentifier === 'nif' && !isValidNif(objLine['cif']))
+			// 	continue;
 			// if (!isValidCif(objLine['cif'])) continue;
 
 			// add or remove the line from the object
@@ -58,28 +67,64 @@ const runScript = async () => {
 		lenght: Object.keys(diffLines).length,
 		diffArray,
 	});
-	console.log({ completeDiffLines });
+	// console.log({ completeDiffLines });
 
 	const result = [header.join(separador), ...diffArray].join('\r\n');
-	await writeFile('./files/diff.csv', result);
+	await writeFile(routeToNewFile, result);
+};
+
+const checkisCifOrNif = (chain: string): 'cif' | 'nif' | 'none' => {
+	const firstChar = chain[0];
+	const lastChar = chain[chain.length - 1];
+	if (firstChar === 'X' || firstChar === 'Y' || firstChar === 'Z')
+		return 'nif';
+	else if (isNaN(Number(lastChar))) return 'nif';
+	else if (isNaN(Number(firstChar))) return 'cif';
+	else return 'none';
 };
 
 const isValidCif = (cif: string): boolean => {
-	cif = cif.toUpperCase();
- if (cif.length !== 9) {
-    return false;
- }
- let suma = parseInt(cif[2]) + parseInt(cif[4]) + parseInt(cif[6]);
- let multiplicadores = [2, 1, 2, 1, 2, 1, 2];
- for (let i = 0; i < 7; i++) {
-    suma += parseInt(cif[2 * i + 1]) * multiplicadores[i];
- }
- let digitoControl = 10 - (suma % 10);
- if (digitoControl === 10) {
-    digitoControl = 0;
- }
- console.log({cif, digitoControl});
- return cif[8] === (cif[0] === 'X' ? '0' : String(digitoControl));
+	let sum: number, control: number;
+	const cifArray = cif.toUpperCase().split('');
+
+	if (cifArray.length !== 9) {
+		return false;
+	}
+
+	sum = parseInt(cifArray[2]) + parseInt(cifArray[4]) + parseInt(cifArray[6]);
+	for (let n = 0; n < 4; n++) {
+		sum +=
+			((2 * parseInt(cifArray[2 * n])) % 10) +
+			Math.floor((2 * parseInt(cifArray[2 * n])) / 10);
+	}
+
+	control = 10 - (sum % 10);
+	if (['X', 'P'].includes(cifArray[0])) {
+		// Control letter type
+		return cifArray[8] === String.fromCharCode(64 + control);
+	} else {
+		// Control number type
+		if (control === 10) control = 0;
+		return parseInt(cifArray[8]) === control;
+	}
+};
+
+const isValidNif = (nif: string): boolean => {
+	const letter = 'TRWAGMYFPDXBNJZSQVHLCKE';
+	const nifSanitized = nif.toUpperCase().replace(/[^A-Z0-9]/g, '');
+  
+	if (nifSanitized.length ===  9 && !isNaN(Number(nifSanitized.slice(0,  8)))) {
+	  let indice = parseInt(nifSanitized.slice(0,  8),  10) %  23;
+	  return nifSanitized.charAt(8) === letter.charAt(indice);
+	} else if (nifSanitized.startsWith('X')) {
+	  const numerosExtranjero = nifSanitized.slice(1,  8);
+	  if (!isNaN(Number(numerosExtranjero))) {
+		let indice = parseInt(numerosExtranjero,  10) %  23;
+		return nifSanitized.charAt(8) === letter.charAt(indice);
+	  }
+	}
+  
+	return false;
 };
 
 runScript();
